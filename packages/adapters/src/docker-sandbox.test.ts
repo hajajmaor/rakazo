@@ -3,6 +3,7 @@ import { SandboxRequestRejectedError } from "@rakazo/adapter-kit";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   DockerSandboxProvider,
+  dockerComputersAreGraphical,
   MAX_SANDBOX_ERROR_RESPONSE_BYTES,
   MAX_SANDBOX_SUCCESS_RESPONSE_BYTES,
   SCREEN_RELEASE_TIMEOUT_MS,
@@ -853,5 +854,38 @@ describe("Docker sandbox stopped containers", () => {
     await expect(
       provider.connectScreen(computer, { view: "stream", interactive: false }, context),
     ).resolves.toMatchObject({ url: null });
+  });
+
+  it("reports a display-less computer when RAKAZO_COMPUTER_DESKTOP=0", () => {
+    expect(dockerComputersAreGraphical({})).toBe(true);
+    expect(dockerComputersAreGraphical({ RAKAZO_COMPUTER_DESKTOP: "1" })).toBe(true);
+    expect(dockerComputersAreGraphical({ RAKAZO_COMPUTER_DESKTOP: " 0 " })).toBe(false);
+    const lite = new DockerSandboxProvider("http://supervisor", "token", false).describe();
+    expect(lite.capabilities).toMatchObject({
+      graphical: false,
+      takeover: false,
+      multiScreen: false,
+      pty: true,
+      persistentHome: true,
+    });
+    const full = new DockerSandboxProvider("http://supervisor", "token", true).describe();
+    expect(full.capabilities.graphical).toBe(true);
+  });
+
+  it("answers a display-less computer's screen without asking the supervisor", async () => {
+    const fetchMock = supervisorWith(Response.json({}));
+    const provider = new DockerSandboxProvider("http://supervisor.test", "test-token", false);
+
+    await expect(
+      provider.connectScreen(computer, { view: "stream", interactive: false }, context),
+    ).resolves.toMatchObject({ url: null });
+    await expect(
+      provider.connectScreen(
+        computer,
+        { view: "stream", interactive: true, controlToken: "lease-1" },
+        context,
+      ),
+    ).rejects.toThrow("This computer has no screen.");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

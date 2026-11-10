@@ -98,14 +98,22 @@ function sandboxGoneError(computer: ComputerRef): Error {
   return sandboxNotFoundError(`sandbox ${computer.id} is not running`);
 }
 
+/** `RAKAZO_COMPUTER_DESKTOP=0` matches a computer image built with `DESKTOP=0`, which has no screen. */
+export function dockerComputersAreGraphical(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.RAKAZO_COMPUTER_DESKTOP?.trim() !== "0";
+}
+
 export class DockerSandboxProvider implements SandboxProvider {
   private readonly supervisorToken: string;
+  private readonly graphical: boolean;
 
   constructor(
     private readonly supervisorUrl: string,
     supervisorToken?: string,
+    graphical?: boolean,
   ) {
     this.supervisorToken = supervisorToken ?? resolveSupervisorToken(process.env);
+    this.graphical = graphical ?? dockerComputersAreGraphical(process.env);
   }
 
   describe() {
@@ -114,12 +122,12 @@ export class DockerSandboxProvider implements SandboxProvider {
       contractVersion: "1",
       adapterVersion: "0.1.0",
       capabilities: {
-        graphical: true,
+        graphical: this.graphical,
         pty: true,
         snapshots: true,
-        takeover: true,
+        takeover: this.graphical,
         persistentHome: true,
-        multiScreen: true,
+        multiScreen: this.graphical,
       },
     };
   }
@@ -269,6 +277,10 @@ export class DockerSandboxProvider implements SandboxProvider {
   ): Promise<ScreenSession> {
     if (request.interactive && !request.controlToken) {
       throw new Error("interactive screen requires a control token");
+    }
+    if (!this.graphical) {
+      if (request.interactive) throw new Error("This computer has no screen.");
+      return { url: null, mimeType: "text/html", close: async () => undefined };
     }
     const res = await fetch(this.url(`/computers/${computer.id}/screen-mode`), {
       method: "POST",
