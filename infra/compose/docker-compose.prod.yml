@@ -726,10 +726,11 @@ services:
       RAKAZO_HOST: ${RAKAZO_HOST:-app.example.com}
       # Go listens with multipath TCP by default, which widens the kernel attack surface.
       GODEBUG: multipathtcp=0
+    # Override to sit behind another proxy, for example RAKAZO_HTTP_PORT=127.0.0.1:8088.
     ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
+      - "${RAKAZO_HTTP_PORT:-80}:80"
+      - "${RAKAZO_HTTPS_PORT:-443}:443"
+      - "${RAKAZO_HTTPS_PORT:-443}:443/udp"
     volumes:
       - ${CADDYFILE_PATH:-./Caddyfile.prod}:/etc/caddy/Caddyfile:ro
       - caddydata:/data
