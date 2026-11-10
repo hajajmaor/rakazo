@@ -1,6 +1,9 @@
 # The bot browser: chromium by default, or BROWSER=chrome (Google Chrome, amd64
 # only) or BROWSER=brave (installed below).
 ARG BROWSER=chromium
+# DESKTOP=0 builds a display-less computer: shell, files and MCP tools only, with no
+# Xvfb, window manager, VNC or browser. Bots on it get no screen or graphical tools.
+ARG DESKTOP=1
 FROM debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251 AS capture-builder
 COPY apt-security.sh /tmp/apt-security.sh
 RUN /tmp/apt-security.sh && rm -f /tmp/apt-security.sh
@@ -50,40 +53,32 @@ RUN /tmp/apt-security.sh
 # Compilers stay in the builder stage; heavier toolchains are a separate call.
 # Debian names fd-find's binary fdfind, so the image links it as fd.
 ARG BROWSER
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    xvfb \
-    x11vnc \
-    fluxbox \
-    xterm \
-    xdotool \
-    wmctrl \
-    x11-utils \
-    x11-xserver-utils \
+ARG DESKTOP
+RUN set -eu; \
+  case "$DESKTOP" in 1|0) ;; *) echo "unsupported DESKTOP: $DESKTOP (use 1 or 0)" >&2; exit 1 ;; esac; \
+  desktop_packages=""; \
+  if [ "$DESKTOP" = 1 ]; then \
+    desktop_packages="xvfb x11vnc fluxbox xterm xdotool wmctrl x11-utils x11-xserver-utils \
+      novnc websockify fonts-noto-cjk fonts-noto-color-emoji dbus-x11 \
+      xdg-desktop-portal xdg-desktop-portal-gtk xdg-utils xclip xsel"; \
+    if [ "$BROWSER" = chromium ]; then desktop_packages="$desktop_packages chromium"; fi; \
+  fi; \
+  apt-get update && apt-get install -y --no-install-recommends \
+    $desktop_packages \
     imagemagick \
-    novnc \
-    websockify \
     python3 \
     libnss-wrapper \
     ca-certificates \
     procps \
     bash \
-    $([ "$BROWSER" = chromium ] && echo chromium) \
     fonts-liberation \
     fonts-dejavu-core \
-    fonts-noto-cjk \
-    fonts-noto-color-emoji \
     locales \
-    dbus-x11 \
-    xdg-desktop-portal \
-    xdg-desktop-portal-gtk \
-    xdg-utils \
     curl \
     git \
     jq \
     openssh-client \
     unzip \
-    xclip \
-    xsel \
     poppler-utils \
     pandoc \
     python3-openpyxl \
@@ -114,6 +109,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=chrome-keyring /google-chrome.gpg /usr/share/keyrings/google-chrome.gpg
 RUN set -eux; \
     [ "$BROWSER" = chrome ] || rm /usr/share/keyrings/google-chrome.gpg; \
+    [ "$DESKTOP" = 1 ] || exit 0; \
     case "$BROWSER" in \
       chromium) ;; \
       chrome) \
@@ -175,7 +171,8 @@ RUN set -eux; \
   gh --version
 # The page browser drives the visible Chromium through agent-browser, pinned and checked by sha256.
 COPY --chmod=755 install-agent-browser.sh /tmp/install-agent-browser.sh
-RUN /tmp/install-agent-browser.sh /usr/local/bin && rm /tmp/install-agent-browser.sh \
+RUN if [ "$DESKTOP" = 1 ]; then /tmp/install-agent-browser.sh /usr/local/bin; fi \
+  && rm /tmp/install-agent-browser.sh \
   && mkdir -p /usr/local/lib/rakazo
 ENV DISPLAY=:1
 ENV HOME=/home/rakazo
@@ -196,6 +193,9 @@ COPY --chmod=755 control.py /usr/local/bin/rakazo-computer-control
 # Tells the supervisor this control service accepts scrolls aimed at a point and sideways
 # scrolls; it sends those to older images through its fallback instead.
 LABEL rakazo.control.aimedScroll="1"
+# Tells the supervisor whether this image has a screen; "0" images get no screen routes.
+LABEL rakazo.computer.graphical="${DESKTOP}"
+ENV RAKAZO_COMPUTER_DESKTOP=${DESKTOP}
 COPY --from=capture-builder /build/librakazo-xcapture.so /usr/local/lib/librakazo-xcapture.so
 COPY --chmod=755 rakazo-browser /usr/local/bin/rakazo-browser
 COPY --chmod=755 rakazo-focus-or-launch /usr/local/bin/rakazo-focus-or-launch
