@@ -64,6 +64,7 @@ export function toComputerStatus(
   work: ComputerWork = { busyBotName: null, takeoverRequested: false },
   shared = false,
   viewerId?: string,
+  graphical = true,
 ): ComputerStatus {
   const controlledByOther = Boolean(
     viewerId && computer?.controlHolder === "user" && !holdsUserControl(computer, viewerId),
@@ -95,6 +96,7 @@ export function toComputerStatus(
               ? computer.state
               : "stopped";
   const capabilities = sandboxKindCapabilities(kind);
+  const noScreen = !graphical && kind !== "desktop" && kind !== "none";
   const diskPercent = computer ? diskUsedPercent(computer) : null;
   const diskFull =
     diskPercent !== null &&
@@ -105,6 +107,7 @@ export function toComputerStatus(
     ...(shared ? { shared } : {}),
     ...(controlledByOther ? { controlledByOther } : {}),
     ...(ownLeaseId ? { controlLeaseId: ownLeaseId } : {}),
+    ...(noScreen ? { noScreen } : {}),
     mode: computer?.scope === "dedicated" ? "dedicated" : "team",
     kind,
     state,
@@ -117,7 +120,8 @@ export function toComputerStatus(
     homeRevision: computer?.homeRevision ?? null,
     busyBotName: work.busyBotName,
     canUpdate: capabilities.inPlaceUpdate,
-    terminalAvailable: capabilities.terminal,
+    // The user terminal opens on the computer's screen.
+    terminalAvailable: capabilities.terminal && !noScreen,
     ...(diskFull ? { diskFullPercent: diskPercent } : {}),
   };
 }

@@ -617,7 +617,8 @@ export function computerRoutes(ctx: RouterContext) {
           !computer?.providerRef ||
           computer.state !== "running" ||
           !deps.sandbox.connectTerminal ||
-          !sandboxKindCapabilities(computer.kind).terminal
+          !sandboxKindCapabilities(computer.kind).terminal ||
+          !deps.sandbox.describe().capabilities.graphical
         ) {
           return { url: null };
         }

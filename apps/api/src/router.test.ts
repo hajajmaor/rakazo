@@ -4471,6 +4471,7 @@ describe("computer terminal and file transfer", () => {
     home?: LocalAgentHomeStore,
   ) {
     const sandbox = {
+      describe: () => ({ capabilities: { graphical: true } }),
       execute: vi.fn(async function* () {
         yield { type: "exit" as const, code: 0 };
       }),
@@ -10938,7 +10939,10 @@ describe("quarantined computer stop", () => {
         });
       const deps = {
         prisma,
-        sandbox: { stop: vi.fn(async () => undefined) },
+        sandbox: {
+          describe: () => ({ capabilities: { graphical: true } }),
+          stop: vi.fn(async () => undefined),
+        },
         jobs: { cancel: vi.fn(async () => undefined) },
         env: {
           defaultProvider: "fake",

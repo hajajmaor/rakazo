@@ -50,6 +50,8 @@ export const ComputerStatusSchema = z.object({
   controlledByOther: z.boolean().optional(),
   /** The viewer's own control lease, set only for the person holding it; closing hands it back. */
   controlLeaseId: Id.optional(),
+  /** True when the computer was built without a desktop: shell and files only, no screen. */
+  noScreen: z.boolean().optional(),
 });
 export type ComputerStatus = z.infer<typeof ComputerStatusSchema>;
 

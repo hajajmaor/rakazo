@@ -265,6 +265,7 @@ describe("computer stop", () => {
       computerRun: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
     } as unknown as PrismaClient;
     const sandbox = {
+      describe: () => ({ capabilities: { graphical: true } }),
       // biome-ignore lint/correctness/useYield: the damaged computer fails before its first file
       exportWorkspace: async function* () {
         throw new SandboxDamagedError();
