@@ -39,6 +39,7 @@ import {
   sessionForAuthHook,
   signedBearer,
 } from "./account-security.js";
+import { APP_SIGN_IN_CODE_PREFIX, appSignInCode } from "./app-sign-in-code.js";
 import { breachedPasswordCheck } from "./breached-password.js";
 import { DEACTIVATED_AT_FIELD } from "./directory.js";
 import type { EmailLocaleOf } from "./email.js";
@@ -269,6 +270,7 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
           "reset-password:": "hashed",
           "delete-account-": "hashed",
           [ACCOUNT_EXPORT_TOKEN_PREFIX]: "hashed",
+          [APP_SIGN_IN_CODE_PREFIX]: "hashed",
         },
       },
     },
@@ -407,6 +409,7 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
     plugins: [
       signedBearer,
       expo(),
+      appSignInCode(),
       accountSecurity(
         env.email,
         emailLocaleOf,

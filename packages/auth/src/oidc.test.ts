@@ -669,6 +669,40 @@ describe("OIDC callbacks", () => {
     expect(session.status).toBe(200);
     expect(await session.json()).toMatchObject({ user: { email: "sso@example.test" } });
   });
+  it("trades the native callback's session for a code only the starting app can exchange", async () => {
+    setup();
+    const verifier = "v".repeat(43);
+    const challenge = createHash("sha256").update(verifier).digest("base64url");
+    const callback = await start(undefined, false, `rakazo://sign-in?challenge=${challenge}`);
+    const authorize = `${issuer}/authorize?state=${new URL(`${origin}${callback}`).searchParams.get("state")}`;
+    await request(
+      `/expo-authorization-proxy?${new URLSearchParams({ authorizationURL: authorize })}`,
+    );
+    const destination = new URL((await request(callback)).headers.get("location")!);
+    expect(destination.protocol).toBe("rakazo:");
+    expect([...destination.searchParams.keys()]).toEqual(["code"]);
+    const code = destination.searchParams.get("code")!;
+    expect(rows("verification").some((row) => String(row.identifier).includes(code))).toBe(false);
+    cookies = "";
+    const stolen = await request("/app-sign-in/token", { code, verifier: "x".repeat(43) });
+    expect(stolen.status).toBe(400);
+    expect((await request("/app-sign-in/token", { code, verifier })).status).toBe(400);
+
+    const again = await start(undefined, false, `rakazo://sign-in?challenge=${challenge}`);
+    await request(
+      `/expo-authorization-proxy?${new URLSearchParams({ authorizationURL: `${issuer}/authorize?state=${new URL(`${origin}${again}`).searchParams.get("state")}` })}`,
+    );
+    const second = new URL((await request(again)).headers.get("location")!).searchParams.get(
+      "code",
+    )!;
+    cookies = "";
+    const exchanged = await request("/app-sign-in/token", { code: second, verifier });
+    expect(exchanged.status).toBe(200);
+    const { token } = (await exchanged.json()) as { token: string };
+    const session = await request("/get-session", undefined, token);
+    expect(await session.json()).toMatchObject({ user: { email: "sso@example.test" } });
+    expect((await request("/app-sign-in/token", { code: second, verifier })).status).toBe(400);
+  });
   it.each([
     "https://attacker.example.test/authorize",
     `${issuer}/elsewhere`,
