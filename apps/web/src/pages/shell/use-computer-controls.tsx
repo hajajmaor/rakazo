@@ -450,6 +450,7 @@ export function useComputerControls({
     screenMissing({
       state: computer?.state,
       kind: computer?.kind,
+      noScreen: computer?.noScreen,
       booting,
       screenUrlLoaded: Boolean(computerBot?.id && screenUrlLoadedBotId === computerBot.id),
       embeddedUrl: embeddedScreenUrl,
