@@ -28,6 +28,15 @@ shutdown() {
 }
 trap shutdown TERM INT
 
+# Display-less computer (DESKTOP=0): no display, control service or browser. PID 1 idles
+# for docker exec and stops through the same handler.
+if [[ "${RAKAZO_COMPUTER_DESKTOP:-1}" == "0" ]]; then
+  sleep infinity &
+  XVFB_PID=$!
+  wait "$XVFB_PID"
+  exit 0
+fi
+
 if [[ -n "${RAKAZO_COMPUTER_CONTROL_TOKEN:-}" ]]; then
   while true; do
     /usr/local/bin/rakazo-computer-control

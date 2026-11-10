@@ -82,7 +82,14 @@ export async function computerStatus(
     }),
     spaceIsShared(deps.prisma, actor.spaceId),
   ]);
-  return toComputerStatus(botId, bot.computer, busyBotName, shared, actor.userId);
+  return toComputerStatus(
+    botId,
+    bot.computer,
+    busyBotName,
+    shared,
+    actor.userId,
+    deps.sandbox.describe().capabilities.graphical,
+  );
 }
 
 /** Whether this person holds this bot's user control, so they may drive its screen. */

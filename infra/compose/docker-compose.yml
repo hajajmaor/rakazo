@@ -186,6 +186,7 @@ x-app-environment: &app-environment # Runtime
   GOOGLE_CLOUD_LOCATION:
   # Computers and cloud agents
   SANDBOX_PROVIDER: docker
+  RAKAZO_COMPUTER_DESKTOP: ${RAKAZO_COMPUTER_DESKTOP:-1}
   SANDBOX_SUPERVISOR_URL: http://supervisor:7091
   SANDBOX_SUPERVISOR_TOKEN:
   SANDBOX_HOST_URL:
@@ -363,6 +364,8 @@ services:
     image: rakazo/computer:local
     build:
       context: ../sandboxes/computer
+      args:
+        DESKTOP: ${RAKAZO_COMPUTER_DESKTOP:-1}
     command: ["true"]
     restart: "no"
 

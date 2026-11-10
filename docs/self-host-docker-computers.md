@@ -32,6 +32,35 @@ browsers otherwise start only when needed. `0`, the default, leaves each to the 
 The supervisor reaches Docker at `/var/run/docker.sock` (or `//./pipe/docker_engine` on Windows). Set
 `DOCKER_SOCKET` for rootless Docker, Colima or another path; `DOCKER_HOST` wins when both are set.
 
+## Display-less computers
+
+On a small host where bots only need a shell, files and MCP servers, run computers without
+Xvfb, a window manager, VNC or a browser. With the source checkout, set this in `.env`; the
+computer image is then built with `DESKTOP=0`:
+
+```env
+RAKAZO_COMPUTER_DESKTOP=0
+RAKAZO_COMPUTER_MEMORY=512m
+```
+
+With published images, build the computer image yourself and point Compose at it:
+
+```bash
+docker build --build-arg DESKTOP=0 -t rakazo-computer-lite infra/sandboxes/computer
+```
+
+```env
+RAKAZO_COMPUTER_IMAGE=rakazo-computer-lite
+RAKAZO_COMPUTER_IMAGE_TAG=latest
+RAKAZO_COMPUTER_DESKTOP=0
+```
+
+Runs then get no screen, desktop or page-browser tools and no takeover, and the app shows no
+screen; shell, file and MCP tools work as before. The setting covers the whole deployment.
+Keep `RAKAZO_COMPUTER_DESKTOP` in step with the image: the image's `rakazo.computer.graphical=0`
+label makes the supervisor refuse screen requests at once, but only the variable tells the API
+and worker.
+
 ## Restricted computer egress
 
 Restricted egress gives Docker computers the public internet (browsing, DNS, apt, git

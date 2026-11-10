@@ -3904,6 +3904,21 @@ describe("a click that completes a purchase on a website", () => {
     }
   });
 
+  it("offers takeover and browser guidance only on a computer with a screen", async () => {
+    const screenless = fixture({ name: "request_takeover", builtin: true });
+    await screenless.run();
+    expect(screenless.offeredTools()).not.toContain("request_takeover");
+    expect(screenless.instructions()).not.toMatch(/request_takeover|browser_navigate/);
+
+    const graphical = fixture({
+      name: "request_takeover",
+      builtin: true,
+      browser: pageBrowser().provider,
+    });
+    await graphical.run();
+    expect(graphical.offeredTools()).toContain("request_takeover");
+  });
+
   it("presses it after Allow once, and only the click that was approved", async () => {
     const page = pageBrowser();
     const f = fixture({ builtin: true, browser: page.provider });

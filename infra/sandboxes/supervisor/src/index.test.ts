@@ -28,6 +28,7 @@ import {
   completeWarmReleasedScreen,
   computerCommandEnv,
   computerControlTimeoutMs,
+  computerHasScreen,
   containerActionStep,
   containerActionSteps,
   controlHandlesActions,
@@ -66,6 +67,13 @@ import {
 const token = resolveSupervisorToken(process.env);
 
 describe("computer screen readiness", () => {
+  it("treats only images labelled graphical=0 as display-less", () => {
+    expect(computerHasScreen(undefined)).toBe(true);
+    expect(computerHasScreen({})).toBe(true);
+    expect(computerHasScreen({ "rakazo.computer.graphical": "1" })).toBe(true);
+    expect(computerHasScreen({ "rakazo.computer.graphical": "0" })).toBe(false);
+  });
+
   it("waits for the server to actually answer HTTP requests before succeeding", async () => {
     const server = http.createServer((_req, res) => res.end("ok"));
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
