@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { openAuthSessionAsync, WebBrowserResultType } from "expo-web-browser";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { authHeaders, currentApiBase, fetchMobileJson } from "./api";
@@ -13,6 +14,13 @@ import { continueWithSso } from "./sso";
 vi.mock("expo-web-browser", () => ({
   openAuthSessionAsync: vi.fn(),
   WebBrowserResultType: { CANCEL: "cancel", DISMISS: "dismiss" },
+}));
+vi.mock("expo-crypto", () => ({
+  CryptoDigestAlgorithm: { SHA256: "SHA-256" },
+  CryptoEncoding: { BASE64: "base64" },
+  getRandomBytes: (length: number) => new Uint8Array(length).fill(1),
+  digestStringAsync: async (_: string, value: string) =>
+    (await import("node:crypto")).createHash("sha256").update(value).digest("base64"),
 }));
 vi.mock("./api-auth", () => ({}));
 vi.mock("./api-live", () => ({}));
@@ -191,4 +199,22 @@ it("maps an unavailable session endpoint", async () => {
     body: {},
   });
   await expect(continueWithSso()).rejects.toThrow("Could not reach the server");
+});
+it("exchanges a one-time code with the verifier only this app holds", async () => {
+  vi.mocked(fetchMobileJson)
+    .mockResolvedValueOnce({ response: Response.json({}), body: { token: "new-session" } })
+    .mockResolvedValueOnce({ response: Response.json({}), body: { user: { id: "user-1" } } });
+  vi.mocked(openAuthSessionAsync).mockResolvedValue({
+    type: "success",
+    url: "rakazo://sign-in?code=one-time",
+  });
+  await expect(continueWithSso()).resolves.toBe(true);
+  const start = JSON.parse(String(vi.mocked(fetchMobileJson).mock.calls[0]![1]!.body));
+  const challenge = new URL(start.callbackURL).searchParams.get("challenge");
+  const [url, init] = vi.mocked(fetchMobileJson).mock.calls[1]!;
+  expect(url).toBe("https://rakazo.example.test/api/auth/app-sign-in/token");
+  const { code, verifier } = JSON.parse(String(init!.body));
+  expect(code).toBe("one-time");
+  expect(createHash("sha256").update(verifier).digest("base64url")).toBe(challenge);
+  expect(replaceSessionTokenIfCurrent).toHaveBeenCalledWith(1, "new-session");
 });

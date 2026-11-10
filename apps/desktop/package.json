@@ -39,6 +39,11 @@
   },
   "build": {
     "appId": "dev.rakazo.desktop",
+    "electronFuses": {
+      "runAsNode": false,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false
+    },
     "directories": {
       "output": "out",
       "buildResources": "assets"
