@@ -20,6 +20,8 @@ services:
     image: ${RAKAZO_COMPUTER_IMAGE:-rakazo/computer}:${RAKAZO_COMPUTER_IMAGE_TAG:-local}
     build:
       context: ../sandboxes/computer
+      args:
+        DESKTOP: ${RAKAZO_COMPUTER_DESKTOP:-1}
     pull_policy: build
     command: ["true"]
     network_mode: none
