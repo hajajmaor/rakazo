@@ -11,6 +11,7 @@ import type { ScreenAssignment } from "./supervisor-logic.js";
 import {
   browserProfilePathForScreen,
   clearComputerScreenRegistry,
+  computerHasScreen,
   currentComputerScreens,
   ensureScreenCommand,
   interactiveScreenCommand,
@@ -129,6 +130,8 @@ async function ensureManagedScreenAttempt(
 ) {
   // Callers hold the screen lock: an inspection before waiting can describe an older boot.
   const info = await container.inspect();
+  // Fail at once: setup would otherwise wait out its timeouts for a display that never starts.
+  if (!computerHasScreen(info.Config.Labels)) throw new Error("this computer has no screen");
   let assigned = currentComputerScreens(
     computerScreens,
     computerScreenBoots,
