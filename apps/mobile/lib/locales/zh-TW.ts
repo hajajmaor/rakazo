@@ -95,6 +95,7 @@ export const ZH_TW_MESSAGES: Record<string, string> = {
   "This model cannot read images. Choose a model that supports images.":
     "此模型無法讀取圖片。請選擇支援圖片的模型。",
   "Could not connect to the computer screen": "無法連線至電腦螢幕",
+  "This computer has no screen.": "這台電腦沒有螢幕。",
   "Retry screen": "重新連線螢幕",
   "The screen connection closed.": "螢幕連線已關閉。",
   "Approval model": "核准模型",

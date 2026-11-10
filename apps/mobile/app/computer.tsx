@@ -426,7 +426,9 @@ export default function Computer() {
     screenError ??
     (unreachableScreen
       ? t("Could not load the desktop. This device cannot reach the screen URL.")
-      : previewPlaceholder(computer?.state, booting, name, computer?.mode));
+      : computer?.noScreen && computer.state === "running"
+        ? t("This computer has no screen.")
+        : previewPlaceholder(computer?.state, booting, name, computer?.mode));
   // Booting shows in the preview; the header and Back stay, and leaving lets the boot finish.
   const bootPending = booting || computer?.state === "booting";
   // Retrying cannot help once the hours are spent; only a plan change can.
@@ -574,7 +576,7 @@ export default function Computer() {
             takeoverRequested={computer?.takeoverRequested ?? false}
             onRelease={releaseComputer}
           />
-        ) : (
+        ) : computer?.noScreen ? null : (
           <NativeActionButton
             label={t("Take control")}
             prominence="secondary"
@@ -693,7 +695,7 @@ export default function Computer() {
                     takeoverRequested={computer?.takeoverRequested ?? false}
                     onRelease={releaseComputer}
                   />
-                ) : (
+                ) : computer?.noScreen ? null : (
                   <NativeActionButton
                     label={t("Take control")}
                     prominence="secondary"

@@ -12,6 +12,14 @@ export function DesktopKindEmptyState({ className }: { className?: string }) {
   );
 }
 
+export function NoScreenEmptyState({ className }: { className?: string }) {
+  return (
+    <div className={className}>
+      <Trans>This computer has no screen.</Trans>
+    </div>
+  );
+}
+
 export function computerPlaceholder(
   state: ComputerStatus["state"] | undefined,
   booting: boolean,

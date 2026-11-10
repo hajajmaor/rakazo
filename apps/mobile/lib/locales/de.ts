@@ -102,6 +102,7 @@ export const DE_MESSAGES: Record<string, string> = {
     "Dieses Modell kann keine Bilder lesen. Wähle ein Modell, das Bilder unterstützt.",
   "Could not connect to the computer screen":
     "Verbindung zum Computerbildschirm konnte nicht hergestellt werden",
+  "This computer has no screen.": "Dieser Computer hat keinen Bildschirm.",
   "Retry screen": "Bildschirm erneut verbinden",
   "The screen connection closed.": "Die Bildschirmverbindung wurde geschlossen.",
   Approvals: "Freigaben",

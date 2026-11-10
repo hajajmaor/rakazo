@@ -102,6 +102,7 @@ export const ES_MESSAGES: Record<string, string> = {
   "This model cannot read images. Choose a model that supports images.":
     "Este modelo no puede leer imágenes. Elige un modelo que admita imágenes.",
   "Could not connect to the computer screen": "No se pudo conectar a la pantalla de la computadora",
+  "This computer has no screen.": "Esta computadora no tiene pantalla.",
   "Retry screen": "Reintentar pantalla",
   "The screen connection closed.": "La conexión con la pantalla se cerró.",
   Approvals: "Aprobaciones",

@@ -100,6 +100,7 @@ export const RU_MESSAGES: Record<string, string> = {
   "This model cannot read images. Choose a model that supports images.":
     "Эта модель не может читать изображения. Выберите модель с поддержкой изображений.",
   "Could not connect to the computer screen": "Не удалось подключиться к экрану компьютера",
+  "This computer has no screen.": "У этого компьютера нет экрана.",
   "Retry screen": "Повторить подключение экрана",
   "The screen connection closed.": "Соединение с экраном закрыто.",
   Approvals: "Одобрения",

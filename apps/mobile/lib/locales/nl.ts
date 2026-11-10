@@ -101,6 +101,7 @@ export const NL_MESSAGES: Record<string, string> = {
   "This model cannot read images. Choose a model that supports images.":
     "Dit model kan geen afbeeldingen lezen. Kies een model dat afbeeldingen ondersteunt.",
   "Could not connect to the computer screen": "Kan geen verbinding maken met het computerscherm",
+  "This computer has no screen.": "Deze computer heeft geen scherm.",
   "Retry screen": "Scherm opnieuw verbinden",
   "The screen connection closed.": "De schermverbinding is gesloten.",
   Approvals: "Goedkeuringen",

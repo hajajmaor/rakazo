@@ -401,6 +401,7 @@ describe("computer event reduction", () => {
     };
     expect(screenMissing(options)).toBe(false);
     expect(screenMissing({ ...options, screenUrlLoaded: true })).toBe(true);
+    expect(screenMissing({ ...options, screenUrlLoaded: true, noScreen: true })).toBe(false);
     expect(
       screenMissing({ ...options, screenUrlLoaded: true, embeddedUrl: "https://screen.example" }),
     ).toBe(false);

@@ -99,6 +99,7 @@ export const JA_MESSAGES: Record<string, string> = {
   "This model cannot read images. Choose a model that supports images.":
     "このモデルは画像を読み取れません。画像に対応したモデルを選択してください。",
   "Could not connect to the computer screen": "コンピューター画面に接続できませんでした",
+  "This computer has no screen.": "このコンピューターには画面がありません。",
   "Retry screen": "画面を再接続",
   "The screen connection closed.": "画面の接続が閉じられました。",
   Approvals: "承認",

@@ -94,6 +94,7 @@ export const ZH_MESSAGES: Record<string, string> = {
   "This model cannot read images. Choose a model that supports images.":
     "此模型无法读取图片。请选择支持图片的模型。",
   "Could not connect to the computer screen": "无法连接到电脑屏幕",
+  "This computer has no screen.": "这台电脑没有屏幕。",
   "Retry screen": "重试屏幕连接",
   "The screen connection closed.": "屏幕连接已关闭。",
   Approvals: "审批",

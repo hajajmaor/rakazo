@@ -6,7 +6,12 @@ import { HardDrive, Maximize2, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { ComputersUnavailableHint } from "../../components/ComputersUnavailableHint";
 import { screenFrames, screenIframeSandbox } from "../../lib/computer-screen";
-import { computerLabel, computerPlaceholder, DesktopKindEmptyState } from "./computer-view";
+import {
+  computerLabel,
+  computerPlaceholder,
+  DesktopKindEmptyState,
+  NoScreenEmptyState,
+} from "./computer-view";
 
 type ComputerPanelProps = {
   bot: Bot;
@@ -150,6 +155,10 @@ function ComputerPreview({
           </div>
         ) : computer?.kind === "desktop" ? (
           <DesktopKindEmptyState
+            className={`grid h-full place-items-center px-6 text-center text-body text-muted-foreground/80 ${hideOnHover}`}
+          />
+        ) : computer?.noScreen && computer.state === "running" ? (
+          <NoScreenEmptyState
             className={`grid h-full place-items-center px-6 text-center text-body text-muted-foreground/80 ${hideOnHover}`}
           />
         ) : computer?.state === "running" && embeddedScreenUrl && !computerScreenError ? (
