@@ -1,0 +1,7 @@
+# One file for hosts that accept a single compose path (for example Dokploy): the production stack
+# with bot computers as local Docker containers.
+name: rakazo-prod
+include:
+  - path:
+      - docker-compose.prod.yml
+      - docker-compose.prod.docker.yml
