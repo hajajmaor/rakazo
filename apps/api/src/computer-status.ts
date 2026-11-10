@@ -114,7 +114,8 @@ export function toComputerStatus(
     controlHolder: (computer?.controlHolder ?? "none") as ComputerStatus["controlHolder"],
     controlBotId: computer?.controlBotId ?? null,
     takeoverRequested: work.takeoverRequested,
-    screenAvailable: !computer?.maintenanceId && (state === "running" || state === "booting"),
+    screenAvailable:
+      !noScreen && !computer?.maintenanceId && (state === "running" || state === "booting"),
     screenWidth: capabilities.screen.width,
     screenHeight: capabilities.screen.height,
     homeRevision: computer?.homeRevision ?? null,
