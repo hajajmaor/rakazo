@@ -195,6 +195,7 @@ x-app-environment: &app-environment # Runtime
   GOOGLE_CLOUD_LOCATION:
   # Computers and cloud agents
   SANDBOX_PROVIDER: ${SANDBOX_PROVIDER:-e2b}
+  RAKAZO_COMPUTER_DESKTOP:
   SANDBOX_SUPERVISOR_URL:
   SANDBOX_SUPERVISOR_TOKEN:
   SANDBOX_HOST_URL:

@@ -197,6 +197,8 @@ x-app-environment: &app-environment # Runtime
   GOOGLE_CLOUD_LOCATION:
   # Computers and cloud agents
   SANDBOX_PROVIDER: ${SANDBOX_PROVIDER:-docker}
+  # 0 when RAKAZO_COMPUTER_IMAGE was built with DESKTOP=0 (no screen, shell and files only).
+  RAKAZO_COMPUTER_DESKTOP: ${RAKAZO_COMPUTER_DESKTOP:-1}
   SANDBOX_SUPERVISOR_URL: http://supervisor:7091
   SANDBOX_SUPERVISOR_TOKEN: ${SANDBOX_SUPERVISOR_TOKEN:?Set SANDBOX_SUPERVISOR_TOKEN in .env}
   SANDBOX_HOST_URL: ${SANDBOX_HOST_URL:-}
