@@ -270,7 +270,8 @@ jobs:
           test "$(/usr/libexec/PlistBuddy -c "Print :com.apple.security.device.audio-input" "$entitlements")" = true
           rm -f "$entitlements"
           "$speech" xx < /dev/null | grep -Fq '"language-not-supported"'
-          ELECTRON_RUN_AS_NODE=1 "$app/Contents/MacOS/Rakazo" -e '
+          # The packaged app's fuses refuse run-as-node, so load its bundle with the same Electron from the repo.
+          ELECTRON_RUN_AS_NODE=1 apps/desktop/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron -e '
             const { createRequire } = require("node:module");
             const appRequire = createRequire(`${process.argv[1]}/Contents/Resources/app.asar/package.json`);
             const koffi = appRequire("koffi");
