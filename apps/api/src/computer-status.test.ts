@@ -14,9 +14,13 @@ describe("toComputerStatus", () => {
     const screenless = toComputerStatus("bot", computer, null, false, undefined, false);
     expect(ComputerStatusSchema.parse(screenless)).toMatchObject({
       noScreen: true,
+      screenAvailable: false,
       terminalAvailable: false,
     });
-    expect(toComputerStatus("bot", computer)).toMatchObject({ terminalAvailable: true });
+    expect(toComputerStatus("bot", computer)).toMatchObject({
+      screenAvailable: true,
+      terminalAvailable: true,
+    });
     expect(toComputerStatus("bot", computer).noScreen).toBeUndefined();
     expect(
       toComputerStatus("bot", { ...computer, kind: "desktop" }, null, false, undefined, false)
