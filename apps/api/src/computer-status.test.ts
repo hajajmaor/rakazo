@@ -3,6 +3,26 @@ import { describe, expect, it } from "vitest";
 import { executionBlocksUserTakeover, toComputerStatus } from "./computer-status.js";
 
 describe("toComputerStatus", () => {
+  it("marks a sandbox computer without a screen and offers it no terminal", () => {
+    const computer = {
+      kind: "docker",
+      state: "running",
+      scope: "team",
+      controlHolder: "none",
+      homeRevision: "saved",
+    };
+    const screenless = toComputerStatus("bot", computer, null, false, undefined, false);
+    expect(ComputerStatusSchema.parse(screenless)).toMatchObject({
+      noScreen: true,
+      terminalAvailable: false,
+    });
+    expect(toComputerStatus("bot", computer)).toMatchObject({ terminalAvailable: true });
+    expect(toComputerStatus("bot", computer).noScreen).toBeUndefined();
+    expect(
+      toComputerStatus("bot", { ...computer, kind: "desktop" }, null, false, undefined, false)
+        .noScreen,
+    ).toBeUndefined();
+  });
   it("shows a quarantined computer as an error without making its screen available", () => {
     expect(
       toComputerStatus("bot", {

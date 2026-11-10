@@ -180,6 +180,7 @@ import {
   followUpsOffered,
   offeredFleetTools,
   offersAgentConnectionTools,
+  PAGE_BROWSER_TOOL_NAMES,
   selectBuiltinToolsForRun,
 } from "./run-tool-selection.js";
 import { applyTool } from "./run-tools.js";
@@ -1218,7 +1219,12 @@ export function createRunExecutor(executorDeps: ExecutorDeps) {
         const graphicalToolsAllowed = graphical && acceptsImages && !heldForTakeover;
         const pageBrowserAllowed =
           graphical && browser.describe().capabilities.page && !heldForTakeover;
-        const disabledBuiltinTools = disabledBuiltinToolSet(bot.disabledBuiltinTools);
+        // A computer without a screen has no browser and nothing for the user to take over.
+        const botDisabledTools =
+          computerKind !== "desktop" && !graphical
+            ? [...(bot.disabledBuiltinTools ?? []), ...PAGE_BROWSER_TOOL_NAMES, "request_takeover"]
+            : bot.disabledBuiltinTools;
+        const disabledBuiltinTools = disabledBuiltinToolSet(botDisabledTools);
         const replyMode = runReplyMode(run.trigger, bot.replyMode, disabledBuiltinTools);
         const emailName = deps.inboundEmailDomain
           ? await deps.prisma.botEmailAddress.findUnique({
@@ -1278,8 +1284,8 @@ export function createRunExecutor(executorDeps: ExecutorDeps) {
             voiceCall,
             // Every member already got a message that names nobody, so a handoff only repeats it.
             disabledBuiltinTools: groupReplyOptional
-              ? [...(bot.disabledBuiltinTools ?? []), "handoff_to_bot"]
-              : bot.disabledBuiltinTools,
+              ? [...(botDisabledTools ?? []), "handoff_to_bot"]
+              : botDisabledTools,
             fleetManagement: bot.fleetManagement,
             followUpFromUser: sourceMessage?.role === "user",
             userComputer: userComputer === "connected",

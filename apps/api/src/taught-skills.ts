@@ -133,6 +133,9 @@ async function ensureGraphicalComputer(
     });
   }
   if (!bot.computer) throw new IsolationError();
+  if (!deps.sandbox.describe().capabilities.graphical) {
+    throw new ORPCError("BAD_REQUEST", { message: "Teaching needs a computer with a screen" });
+  }
   if (bot.computer.state !== "running" || !bot.computer.providerRef) {
     const ctx = createAdapterContext(actor, bot.id, "skills.start");
     const manualRunId = `teach:${randomUUID()}`;

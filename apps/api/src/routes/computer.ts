@@ -346,6 +346,9 @@ export function computerRoutes(ctx: RouterContext) {
         if (!bot.computer?.providerRef || bot.computer.state !== "running") {
           throw new ORPCError("BAD_REQUEST", { message: "computer must be running" });
         }
+        if (bot.computer.kind !== "desktop" && !deps.sandbox.describe().capabilities.graphical) {
+          throw new ORPCError("BAD_REQUEST", { message: "This computer has no screen." });
+        }
         assertNotAnotherPersonsControl(bot.computer, context.actor);
         if (hasActiveComputerControl(bot.computer) && bot.computer.controlBotId === bot.id) {
           await bindWaitingTakeoverToControl(deps, {
@@ -742,7 +745,8 @@ export function computerRoutes(ctx: RouterContext) {
           !computer?.providerRef ||
           computer.state !== "running" ||
           !deps.sandbox.connectTerminal ||
-          !computerSupportsTerminal(computer.kind)
+          !computerSupportsTerminal(computer.kind) ||
+          !deps.sandbox.describe().capabilities.graphical
         ) {
           return { url: null };
         }
