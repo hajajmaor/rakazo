@@ -565,6 +565,13 @@ export function containerActionStep(
 /** Image label of computers whose control service takes aimed and sideways scrolls. */
 export const AIMED_SCROLL_CONTROL_LABEL = "rakazo.control.aimedScroll";
 
+/** Image label that is "0" on computers built with `DESKTOP=0`, which have no screen. */
+export const GRAPHICAL_COMPUTER_LABEL = "rakazo.computer.graphical";
+
+export function computerHasScreen(labels: Record<string, string> | undefined) {
+  return labels?.[GRAPHICAL_COMPUTER_LABEL] !== "0";
+}
+
 /**
  * Whether a computer's control service can run these actions. One built before aimed and
  * sideways scrolls refuses them mid-batch, after earlier steps have run, so such a batch goes
