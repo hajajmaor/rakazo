@@ -29,7 +29,7 @@ const publishWorkflow = parse(readFileSync(publishWorkflowFile, "utf8")) as {
     publish?: {
       strategy?: {
         matrix?: {
-          include?: Array<{ name?: string }>;
+          image?: string[];
         };
       };
     };
@@ -82,9 +82,9 @@ describe("the images compose file", () => {
 
   it("only references first-party images that the publish matrix publishes", () => {
     const published = new Set(
-      (publishWorkflow.jobs?.publish?.strategy?.matrix?.include ?? [])
-        .map((entry) => entry.name)
-        .filter((name): name is string => typeof name === "string" && name.length > 0),
+      (publishWorkflow.jobs?.publish?.strategy?.matrix?.image ?? []).filter(
+        (name): name is string => typeof name === "string" && name.length > 0,
+      ),
     );
     const referenced = new Set<string>();
     for (const service of Object.values(compose.services)) {
@@ -112,7 +112,7 @@ describe("the images compose file", () => {
       const env = compose.services[name]?.environment ?? {};
       expect(env.HTTP_PROXY).toBe("${HTTP_PROXY:-${http_proxy:-}}");
       expect(env.HTTPS_PROXY).toBe("${HTTPS_PROXY:-${https_proxy:-}}");
-      expect(env.NO_PROXY).toBe("${NO_PROXY:-${no_proxy:-}}");
+      expect(env.NO_PROXY).toBe("${NO_PROXY:-${NO_PROXY:-}}");
       expect(env.http_proxy).toBe("${http_proxy:-${HTTP_PROXY:-}}");
       expect(env.https_proxy).toBe("${https_proxy:-${HTTPS_PROXY:-}}");
       expect(env.no_proxy).toBe("${no_proxy:-${NO_PROXY:-}}");
@@ -192,6 +192,7 @@ describe("the images compose file", () => {
     expect(compose.services.supervisor?.environment?.SENTRY_DSN).toBe("${SENTRY_DSN:-}");
     expect(compose.services.computer?.environment?.AXIOM_TOKEN).toBeUndefined();
     expect(compose.services.computer?.environment?.SENTRY_DSN).toBeUndefined();
-    expect(compose.services.computer?.environment?.LOG_LEVEL).toBeUndefined();
+    expect(compose.services.computer?.environment?.AXIOM_DATASET).toBeUndefined();
+    expect(compose.services.computer?.environment?.AXIOM_DATASET).toBeUndefined();
   });
 });
