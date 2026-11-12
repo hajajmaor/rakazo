@@ -201,4 +201,3 @@ jobs:
             image-ref.txt
             image-index.txt
           retention-days: 90
-
