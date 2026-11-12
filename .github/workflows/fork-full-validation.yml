@@ -1,7 +1,7 @@
 name: Fork full validation
 on:
   push:
-    branches: ['ci/import-upstream-sync-2026-11-12', 'review/**', deploy]
+    branches: ['review/**', deploy]
   workflow_dispatch:
   workflow_call:
 permissions:
@@ -12,62 +12,13 @@ concurrency:
 env:
   TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX: mirror.gcr.io/
 jobs:
-  prepare:
-    name: Prepare isolated candidate
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    outputs:
-      sha: ${{ steps.source.outputs.sha }}
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
-        with:
-          fetch-depth: 0
-      - name: Import approved source without touching deploy
-        id: source
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ "$GITHUB_REF_NAME" = ci/import-upstream-sync-2026-11-12 ]; then
-            seed=$(git rev-parse HEAD)
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git fetch https://github.com/elie222/rakazo.git b029a6454567363dd9bb0c8146f606bae8acb91c
-            printf '%s\n' 'infra/sandboxes/computer/Dockerfile merge=union' 'packages/adapters/src/docker-sandbox.ts merge=union' 'packages/adapters/src/docker-sandbox.test.ts merge=union' >> .git/info/attributes
-            git merge --no-commit --no-ff b029a6454567363dd9bb0c8146f606bae8acb91c
-            test -z "$(git ls-files -u)"
-            # Retain fork automation rather than importing upstream release/deploy automation.
-            git restore --source="$seed" --staged --worktree .github/workflows
-            git diff --cached --check
-            python3 - <<'PY'
-          import subprocess, hashlib
-          tree = subprocess.check_output(['git', 'ls-files', '--stage'])
-          lines = []
-          for line in tree.splitlines():
-              meta, path = line.split(b'\t', 1)
-              if path.startswith(b'.github/workflows/'):
-                  continue
-              mode, sha, stage = meta.split()
-              assert stage == b'0', path
-              lines.append(mode + b' blob ' + sha + b'\t' + path)
-          digest = hashlib.sha256(b'\n'.join(lines)).hexdigest()
-          assert digest == '654031232d7537e8e9fa74058a7e8d214e0a1119dfba3683d98da6d9aa69ed78', digest
-          print('All non-workflow files exactly match the reviewed local candidate')
-          PY
-            git commit -m 'Merge upstream b029a645 preserving fork behavior and isolated fork CI'
-            git push origin HEAD:refs/heads/review/upstream-sync-2026-11-12
-          fi
-          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-          echo "Candidate: $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
   static:
     name: Lint, full typecheck and script safety tests
-    needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: ${{ needs.prepare.outputs.sha }}
           persist-credentials: false
       - uses: ./.github/actions/setup-workspace
       - run: pnpm lint
@@ -90,7 +41,6 @@ jobs:
           node --test scripts/lazy-vendors.test.mjs
   unit:
     name: Unit tests (${{ matrix.shard }}/6)
-    needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
@@ -100,7 +50,6 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: ${{ needs.prepare.outputs.sha }}
           persist-credentials: false
       - uses: ./.github/actions/setup-workspace
       - run: pnpm db:generate
@@ -115,7 +64,6 @@ jobs:
       - run: pnpm run test --shard=${{ matrix.shard }}/6
   integration:
     name: Postgres journeys (${{ matrix.shard }}/6)
-    needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 40
     strategy:
@@ -130,19 +78,17 @@ jobs:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: rakazo
         ports: ['5432:5432']
-        options: --health-cmd 'pg_isready -U postgres -d rakazo' --health-interval 5s --health-timeout 5s --health-retries 20
+        options: --health-cmd=pg_isready --health-interval=5s --health-timeout=5s --health-retries=20
     env:
       CI_POSTGRES_URL: postgres://postgres:postgres@127.0.0.1:5432/rakazo
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: ${{ needs.prepare.outputs.sha }}
           persist-credentials: false
       - uses: ./.github/actions/setup-workspace
       - run: pnpm test:integration --shard=${{ matrix.shard }}/6
   build:
     name: Production application build and Electron smoke
-    needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
@@ -152,7 +98,6 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: ${{ needs.prepare.outputs.sha }}
           persist-credentials: false
       - uses: ./.github/actions/setup-workspace
         with:
@@ -173,7 +118,6 @@ jobs:
           if-no-files-found: ignore
   native:
     name: Native computer (${{ matrix.os }})
-    needs: prepare
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
     strategy:
@@ -185,7 +129,6 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: ${{ needs.prepare.outputs.sha }}
           persist-credentials: false
       - if: runner.os == 'Windows'
         run: node --test scripts/pnpm.test.mjs
@@ -207,7 +150,6 @@ jobs:
           electron_config_cache: ${{ runner.temp }}/electron-cache
   web:
     name: Web E2E (${{ matrix.suite }})
-    needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
@@ -222,14 +164,13 @@ jobs:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: rakazo
         ports: ['5432:5432']
-        options: --health-cmd 'pg_isready -U postgres -d rakazo' --health-interval 5s --health-timeout 5s --health-retries 20
+        options: --health-cmd=pg_isready --health-interval=5s --health-timeout=5s --health-retries=20
     env:
       CI_POSTGRES_URL: postgres://postgres:postgres@127.0.0.1:5432/rakazo
       SUITE: ${{ matrix.suite }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: ${{ needs.prepare.outputs.sha }}
           persist-credentials: false
       - uses: ./.github/actions/setup-workspace
         with:
@@ -261,20 +202,18 @@ jobs:
           if-no-files-found: ignore
   compose:
     name: Compose smoke and Postgres upgrade
-    needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: ${{ needs.prepare.outputs.sha }}
           persist-credentials: false
       - run: bash infra/compose/run-smokes.sh
       - run: bash infra/compose/upgrade-postgres.docker-test.sh
   full-validation:
     name: Full validation passed
     if: always()
-    needs: [prepare, static, unit, integration, build, native, web, compose]
+    needs: [static, unit, integration, build, native, web, compose]
     runs-on: ubuntu-latest
     steps:
       - name: Fail unless every required suite passed
