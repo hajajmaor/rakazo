@@ -27,10 +27,13 @@ interface Job {
   concurrency?: { group: string; queue?: string; "cancel-in-progress"?: boolean };
 }
 const workflow = parse(workflowText) as {
-  on: Record<string, { inputs?: Record<string, { type: string; default: boolean }> }>;
+  on: Record<
+    "workflow_call" | "workflow_dispatch",
+    { inputs: { approved: { type: string; default: boolean } } }
+  >;
   permissions: Record<string, string>;
   concurrency: { group: string; "cancel-in-progress": boolean };
-  jobs: Record<string, Job>;
+  jobs: { build: Job; publish: Job; "full-tests": Job };
 };
 const ci = parse(readFileSync(path.join(workflowsDir, "ci.yml"), "utf8")) as {
   concurrency: { group: string; "cancel-in-progress": string };
