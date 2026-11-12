@@ -1,0 +1,27 @@
+name: Fork CI housekeeping
+on:
+  push:
+    branches: ['review/**']
+permissions:
+  actions: write
+  contents: read
+jobs:
+  cancel-superseded:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Cancel only obsolete fork validation runs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          CURRENT_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api --paginate "repos/$REPOSITORY/actions/workflows/fork-full-validation.yml/runs?per_page=100" --jq '.workflow_runs[] | [.id,.head_branch,.head_sha,.status] | @tsv' > runs.tsv
+          while IFS=$'\t' read -r id branch sha status; do
+            if [[ "$sha" != "$CURRENT_SHA" && ( "$branch" = "$BRANCH" || "$branch" = ci/import-upstream-sync-2026-11-12 ) && ( "$status" = in_progress || "$status" = queued || "$status" = pending ) ]]; then
+              gh api -X POST "repos/$REPOSITORY/actions/runs/$id/cancel"
+            fi
+          done < runs.tsv
