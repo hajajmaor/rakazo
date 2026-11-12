@@ -1,7 +1,7 @@
 name: Fork CI housekeeping
 on:
   push:
-    branches: ['review/**']
+    branches: ["review/**"]
 permissions:
   actions: write
   contents: read

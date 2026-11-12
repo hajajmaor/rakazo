@@ -41,14 +41,70 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {image: app, arch: amd64, runner: ubuntu-latest, context: ., file: infra/compose/Dockerfile, desktop: '1'}
-          - {image: app, arch: arm64, runner: ubuntu-24.04-arm, context: ., file: infra/compose/Dockerfile, desktop: '1'}
-          - {image: updater, arch: amd64, runner: ubuntu-latest, context: ., file: infra/updater/Dockerfile, desktop: '1'}
-          - {image: updater, arch: arm64, runner: ubuntu-24.04-arm, context: ., file: infra/updater/Dockerfile, desktop: '1'}
-          - {image: computer, arch: amd64, runner: ubuntu-latest, context: infra/sandboxes/computer, file: infra/sandboxes/computer/Dockerfile, desktop: '1'}
-          - {image: computer, arch: arm64, runner: ubuntu-24.04-arm, context: infra/sandboxes/computer, file: infra/sandboxes/computer/Dockerfile, desktop: '1'}
-          - {image: computer-headless, arch: amd64, runner: ubuntu-latest, context: infra/sandboxes/computer, file: infra/sandboxes/computer/Dockerfile, desktop: '0'}
-          - {image: computer-headless, arch: arm64, runner: ubuntu-24.04-arm, context: infra/sandboxes/computer, file: infra/sandboxes/computer/Dockerfile, desktop: '0'}
+          - {
+              image: app,
+              arch: amd64,
+              runner: ubuntu-latest,
+              context: .,
+              file: infra/compose/Dockerfile,
+              desktop: "1",
+            }
+          - {
+              image: app,
+              arch: arm64,
+              runner: ubuntu-24.04-arm,
+              context: .,
+              file: infra/compose/Dockerfile,
+              desktop: "1",
+            }
+          - {
+              image: updater,
+              arch: amd64,
+              runner: ubuntu-latest,
+              context: .,
+              file: infra/updater/Dockerfile,
+              desktop: "1",
+            }
+          - {
+              image: updater,
+              arch: arm64,
+              runner: ubuntu-24.04-arm,
+              context: .,
+              file: infra/updater/Dockerfile,
+              desktop: "1",
+            }
+          - {
+              image: computer,
+              arch: amd64,
+              runner: ubuntu-latest,
+              context: infra/sandboxes/computer,
+              file: infra/sandboxes/computer/Dockerfile,
+              desktop: "1",
+            }
+          - {
+              image: computer,
+              arch: arm64,
+              runner: ubuntu-24.04-arm,
+              context: infra/sandboxes/computer,
+              file: infra/sandboxes/computer/Dockerfile,
+              desktop: "1",
+            }
+          - {
+              image: computer-headless,
+              arch: amd64,
+              runner: ubuntu-latest,
+              context: infra/sandboxes/computer,
+              file: infra/sandboxes/computer/Dockerfile,
+              desktop: "0",
+            }
+          - {
+              image: computer-headless,
+              arch: arm64,
+              runner: ubuntu-24.04-arm,
+              context: infra/sandboxes/computer,
+              file: infra/sandboxes/computer/Dockerfile,
+              desktop: "0",
+            }
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
@@ -145,3 +201,4 @@ jobs:
             image-ref.txt
             image-index.txt
           retention-days: 90
+

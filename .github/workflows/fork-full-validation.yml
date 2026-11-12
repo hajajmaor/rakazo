@@ -1,7 +1,7 @@
 name: Fork full validation
 on:
   push:
-    branches: ['review/**', deploy]
+    branches: ["review/**", deploy]
   workflow_dispatch:
   workflow_call:
 permissions:
@@ -77,7 +77,7 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: rakazo
-        ports: ['5432:5432']
+        ports: ["5432:5432"]
         options: --health-cmd=pg_isready --health-interval=5s --health-timeout=5s --health-retries=20
     env:
       CI_POSTGRES_URL: postgres://postgres:postgres@127.0.0.1:5432/rakazo
@@ -101,7 +101,7 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-workspace
         with:
-          electron: 'true'
+          electron: "true"
           turbo: build
       - run: pnpm db:generate
       - run: pnpm build
@@ -135,8 +135,8 @@ jobs:
       - run: node --test scripts/setup-worktree.test.mjs
       - uses: ./.github/actions/setup-workspace
         with:
-          electron: 'true'
-          filter: '@rakazo/desktop...'
+          electron: "true"
+          filter: "@rakazo/desktop..."
       - run: pnpm db:generate
       - run: pnpm --filter @rakazo/desktop build
         env:
@@ -146,7 +146,7 @@ jobs:
         run: pnpm exec vitest run apps/desktop/src/host-screen.windows.test.ts
       - run: pnpm --filter @rakazo/desktop exec electron ../../node_modules/vitest/vitest.mjs run --root ../.. packages/adapters/src/host-computer.test.ts apps/desktop/src/host-computer.test.ts
         env:
-          ELECTRON_RUN_AS_NODE: '1'
+          ELECTRON_RUN_AS_NODE: "1"
           electron_config_cache: ${{ runner.temp }}/electron-cache
   web:
     name: Web E2E (${{ matrix.suite }})
@@ -155,7 +155,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: ['1', '2', '3', '4', '5', '6', page-browser, pages, www]
+        suite: ["1", "2", "3", "4", "5", "6", page-browser, pages, www]
     services:
       postgres:
         image: mirror.gcr.io/library/postgres:18-alpine
@@ -163,7 +163,7 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: rakazo
-        ports: ['5432:5432']
+        ports: ["5432:5432"]
         options: --health-cmd=pg_isready --health-interval=5s --health-timeout=5s --health-retries=20
     env:
       CI_POSTGRES_URL: postgres://postgres:postgres@127.0.0.1:5432/rakazo
@@ -174,7 +174,7 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-workspace
         with:
-          playwright: 'true'
+          playwright: "true"
       - name: Install Chromium and rendering fonts
         run: |
           pnpm --filter @rakazo/web exec playwright install chromium
