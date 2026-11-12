@@ -73,6 +73,9 @@ RUN set -eu; \
     bash \
     fonts-liberation \
     fonts-dejavu-core \
+    fonts-noto-cjk \
+    fonts-noto-color-emoji \
+    fonts-thai-tlwg \
     locales \
     curl \
     git \
@@ -86,6 +89,7 @@ RUN set -eu; \
     fd-find \
     file \
     sqlite3 \
+    nftables \
   && rm -rf /var/lib/apt/lists/* \
   && pdftotext -v \
   && pdfinfo -v \
