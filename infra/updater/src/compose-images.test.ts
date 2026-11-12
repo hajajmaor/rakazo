@@ -112,7 +112,7 @@ describe("the images compose file", () => {
       const env = compose.services[name]?.environment ?? {};
       expect(env.HTTP_PROXY).toBe("${HTTP_PROXY:-${http_proxy:-}}");
       expect(env.HTTPS_PROXY).toBe("${HTTPS_PROXY:-${https_proxy:-}}");
-      expect(env.NO_PROXY).toBe("${NO_PROXY:-${NO_PROXY:-}}");
+      expect(env.NO_PROXY).toBe("${NO_PROXY:-${no_proxy:-}}");
       expect(env.http_proxy).toBe("${http_proxy:-${HTTP_PROXY:-}}");
       expect(env.https_proxy).toBe("${https_proxy:-${HTTPS_PROXY:-}}");
       expect(env.no_proxy).toBe("${no_proxy:-${NO_PROXY:-}}");
@@ -192,7 +192,6 @@ describe("the images compose file", () => {
     expect(compose.services.supervisor?.environment?.SENTRY_DSN).toBe("${SENTRY_DSN:-}");
     expect(compose.services.computer?.environment?.AXIOM_TOKEN).toBeUndefined();
     expect(compose.services.computer?.environment?.SENTRY_DSN).toBeUndefined();
-    expect(compose.services.computer?.environment?.AXIOM_DATASET).toBeUndefined();
-    expect(compose.services.computer?.environment?.AXIOM_DATASET).toBeUndefined();
+    expect(compose.services.computer?.environment?.LOG_LEVEL).toBeUndefined();
   });
 });
