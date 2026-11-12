@@ -36,7 +36,7 @@ jobs:
             printf '%s\n' 'infra/sandboxes/computer/Dockerfile merge=union' 'packages/adapters/src/docker-sandbox.ts merge=union' 'packages/adapters/src/docker-sandbox.test.ts merge=union' >> .git/info/attributes
             git merge --no-commit --no-ff b029a6454567363dd9bb0c8146f606bae8acb91c
             test -z "$(git ls-files -u)"
-            # Fork automation is deliberately retained, not upstream release/deploy automation.
+            # Retain fork automation rather than importing upstream release/deploy automation.
             git restore --source="$seed" --staged --worktree .github/workflows
             git diff --cached --check
             python3 - <<'PY'
@@ -149,7 +149,6 @@ jobs:
       DATABASE_URL: postgres://rakazo:rakazo@127.0.0.1:5433/rakazo
       BETTER_AUTH_SECRET: ci-build-auth-secret-at-least-32-characters
       ENCRYPTION_KEY: ci-build-encryption-key-at-least-32-characters
-      electron_config_cache: ${{ runner.temp }}/electron-cache
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
@@ -161,7 +160,11 @@ jobs:
           turbo: build
       - run: pnpm db:generate
       - run: pnpm build
+        env:
+          electron_config_cache: ${{ runner.temp }}/electron-cache
       - run: xvfb-run --auto-servernum pnpm --filter @rakazo/desktop exec playwright test --config e2e/playwright.config.ts
+        env:
+          electron_config_cache: ${{ runner.temp }}/electron-cache
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
@@ -179,7 +182,6 @@ jobs:
         os: [macos-latest, windows-latest]
     env:
       DATABASE_URL: postgres://rakazo:rakazo@127.0.0.1:5433/rakazo
-      electron_config_cache: ${{ runner.temp }}/electron-cache
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
@@ -194,12 +196,15 @@ jobs:
           filter: '@rakazo/desktop...'
       - run: pnpm db:generate
       - run: pnpm --filter @rakazo/desktop build
+        env:
+          electron_config_cache: ${{ runner.temp }}/electron-cache
       - run: pnpm exec vitest run packages/adapters/src/host-computer.test.ts packages/adapters/src/file-handle-path.test.ts packages/adapters/src/desktop-sandbox-command.test.ts packages/adapters/src/desktop-sandbox-paths.test.ts packages/adapters/src/desktop-workspace-cleanup.test.ts packages/adapters/src/computer-support.test.ts apps/desktop/src/host-computer.test.ts
       - if: runner.os == 'Windows'
         run: pnpm exec vitest run apps/desktop/src/host-screen.windows.test.ts
       - run: pnpm --filter @rakazo/desktop exec electron ../../node_modules/vitest/vitest.mjs run --root ../.. packages/adapters/src/host-computer.test.ts apps/desktop/src/host-computer.test.ts
         env:
           ELECTRON_RUN_AS_NODE: '1'
+          electron_config_cache: ${{ runner.temp }}/electron-cache
   web:
     name: Web E2E (${{ matrix.suite }})
     needs: prepare
