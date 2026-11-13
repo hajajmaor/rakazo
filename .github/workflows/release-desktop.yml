@@ -565,4 +565,3 @@ jobs:
           if [[ "$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" --jq .draft 2>/dev/null)" == "true" ]]; then
             gh release delete "$RELEASE_TAG" --yes
           fi
-
