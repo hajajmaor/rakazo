@@ -1,332 +1,203 @@
-name: publish-server-image
-
-# Release tags publish the source-addressed image used by in-app updates plus the human-readable
-# semver tags. Main commits publish `sha-<commit>` and `edge` through ci.yml, which calls this
-# workflow so a production deploy starts only once its image exists. Pull requests build with a
-# read-only token and an isolated cache, so untrusted code can validate the images without
-# receiving package-publish authority.
-#
-# Published builds run on Depot when the DEPOT_PROJECT_ID repository variable names a project, and
-# on GitHub's runners otherwise (forks) or when a Depot build fails. Pull requests never use Depot.
+name: Publish approved fork images
+# Fork publishing is explicit: no tag, push or PR can publish or deploy automatically.
+# Never updates edge/latest. Production deployment is a separate approval/action.
 on:
-  push:
-    tags: ["v*"]
-  workflow_call:
-  # Only what the image definitions consume directly. A source change that breaks the app's build
-  # fails ci.yml's production builds first, and main still builds every image before it deploys.
-  pull_request:
-    paths:
-      - ".dockerignore"
-      - ".github/workflows/publish-server-image.yml"
-      - ".github/actions/publish-image/**"
-      - "infra/compose/**"
-      - "infra/sandboxes/**"
-      - "infra/updater/**"
-      - "patches/**"
-      - "**/package.json"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
   workflow_dispatch:
-
+    inputs:
+      approved:
+        description: Owner approved building and publishing this exact candidate
+        type: boolean
+        required: true
+        default: false
+  workflow_call:
+    inputs:
+      approved:
+        description: Explicit owner approval for this candidate
+        type: boolean
+        required: false
+        default: false
 permissions:
   contents: read
-
-env:
-  # docker/metadata-action otherwise truncates commit tags to seven collision-prone characters.
-  DOCKER_METADATA_SHORT_SHA_LENGTH: 40
-
 concurrency:
-  group: publish-server-image-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
+  group: fork-images-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
-  installer-smoke:
-    name: Compose installer smokes
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+  full-tests:
+    name: Mandatory full test gate
+    if: inputs.approved == true
+    uses: ./.github/workflows/fork-full-validation.yml
     permissions:
       contents: read
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          persist-credentials: false
-      - run: bash infra/compose/run-smokes.sh
-
-  validate:
-    name: Validate ${{ matrix.name }} image
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    permissions:
-      contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: app
-            dockerfile: infra/compose/Dockerfile
-            context: .
-          - name: updater
-            dockerfile: infra/updater/Dockerfile
-            context: .
-          - name: computer
-            dockerfile: infra/sandboxes/computer/Dockerfile
-            context: infra/sandboxes/computer
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          persist-credentials: false
-      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
-      - id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
-        with:
-          images: ghcr.io/${{ github.repository }}/${{ matrix.name }}
-          tags: type=sha,prefix=sha-
-      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
-        with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
-          push: false
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: ${{ matrix.name == 'app' && format('GIT_SHA={0}', github.sha) || '' }}
-          cache-from: |
-            type=gha,scope=pr-${{ github.event.pull_request.number }}-${{ matrix.name }}
-            type=gha,scope=${{ matrix.name }}
-          cache-to: type=gha,mode=max,scope=pr-${{ github.event.pull_request.number }}-${{ matrix.name }}
-          provenance: false
-          sbom: false
-
   build:
-    name: Build ${{ matrix.name }} ${{ matrix.arch }}
-    # A Depot outage must not block deploys, so any failed Depot build rebuilds every image here.
-    if: >-
-      !cancelled() && github.event_name != 'pull_request' &&
-      (vars.DEPOT_PROJECT_ID == '' || contains(needs.build-depot.outputs.*, 'failed'))
-    needs: [build-depot]
-    # Each architecture builds natively on its own runner and pushes by digest only.
-    # No QEMU: GitHub hosts native arm64 runners, and emulated arm64 took hours for the
-    # desktop-sized computer image. See docs/self-host-upgrading.md (Published images and tags).
+    name: Build ${{ matrix.image }} ${{ matrix.arch }}
+    needs: full-tests
+    if: inputs.approved == true && needs.full-tests.result == 'success'
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 90
+    timeout-minutes: 120
     permissions:
       contents: read
       packages: write
     strategy:
       fail-fast: false
       matrix:
-        name: [app, updater, computer]
-        arch: [amd64, arm64]
         include:
-          # Only the updater image contains the Docker CLI; the application image stays unprivileged.
-          # The supervisor is not a separate published image: it runs from `app` on the internal network.
-          - name: app
-            dockerfile: infra/compose/Dockerfile
-            context: .
-          - name: updater
-            dockerfile: infra/updater/Dockerfile
-            context: .
-          - name: computer
-            dockerfile: infra/sandboxes/computer/Dockerfile
-            context: infra/sandboxes/computer
-          - arch: amd64
-            runner: ubuntu-latest
-          - arch: arm64
-            runner: ubuntu-24.04-arm
+          - {
+              image: app,
+              arch: amd64,
+              runner: ubuntu-latest,
+              context: .,
+              file: infra/compose/Dockerfile,
+              desktop: "1",
+            }
+          - {
+              image: app,
+              arch: arm64,
+              runner: ubuntu-24.04-arm,
+              context: .,
+              file: infra/compose/Dockerfile,
+              desktop: "1",
+            }
+          - {
+              image: updater,
+              arch: amd64,
+              runner: ubuntu-latest,
+              context: .,
+              file: infra/updater/Dockerfile,
+              desktop: "1",
+            }
+          - {
+              image: updater,
+              arch: arm64,
+              runner: ubuntu-24.04-arm,
+              context: .,
+              file: infra/updater/Dockerfile,
+              desktop: "1",
+            }
+          - {
+              image: computer,
+              arch: amd64,
+              runner: ubuntu-latest,
+              context: infra/sandboxes/computer,
+              file: infra/sandboxes/computer/Dockerfile,
+              desktop: "1",
+            }
+          - {
+              image: computer,
+              arch: arm64,
+              runner: ubuntu-24.04-arm,
+              context: infra/sandboxes/computer,
+              file: infra/sandboxes/computer/Dockerfile,
+              desktop: "1",
+            }
+          - {
+              image: computer-headless,
+              arch: amd64,
+              runner: ubuntu-latest,
+              context: infra/sandboxes/computer,
+              file: infra/sandboxes/computer/Dockerfile,
+              desktop: "0",
+            }
+          - {
+              image: computer-headless,
+              arch: arm64,
+              runner: ubuntu-24.04-arm,
+              context: infra/sandboxes/computer,
+              file: infra/sandboxes/computer/Dockerfile,
+              desktop: "0",
+            }
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           persist-credentials: false
-      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
-      - name: Log in to GHCR
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
-        with:
-          # Labels only; publication applies tags after validation.
-          images: ghcr.io/${{ github.repository }}/${{ matrix.name }}
-          tags: type=sha,prefix=sha-
-      - id: build
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        id: image
         with:
           context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
+          file: ${{ matrix.file }}
           platforms: linux/${{ matrix.arch }}
-          labels: ${{ steps.meta.outputs.labels }}
-          # A fork can publish only to its own namespace; no credential can redirect this value.
-          # The app's filesystem is also written locally so the credential scan needs no registry pull.
-          outputs: |
-            type=image,name=ghcr.io/${{ github.repository }}/${{ matrix.name }},push-by-digest=true,name-canonical=true,push=true
-            ${{ matrix.name == 'app' && 'type=tar,dest=/tmp/rootfs.tar' || '' }}
-          # GET /health can report the exact source commit without a deployment-supplied override.
-          build-args: ${{ matrix.name == 'app' && format('GIT_SHA={0}', github.sha) || '' }}
-          cache-from: type=gha,scope=${{ matrix.name }}-${{ matrix.arch }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.name }}-${{ matrix.arch }}
+          outputs: type=image,name=ghcr.io/${{ github.repository }}/${{ matrix.image }},push-by-digest=true,name-canonical=true,push=true
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+            DESKTOP=${{ matrix.desktop }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
           provenance: mode=max
           sbom: true
-      # Before any tag points at it: the untagged digest is unreachable without this run's output.
-      - name: Check the app image ships no credentials
-        if: matrix.name == 'app'
-        run: bash infra/compose/check-image.sh /tmp/rootfs.tar
-      - name: Record the architecture digest
+          cache-from: type=gha,scope=fork-${{ matrix.image }}-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=fork-${{ matrix.image }}-${{ matrix.arch }}
+      - name: Check app filesystem contains no credentials
+        if: matrix.image == 'app'
         env:
-          DIGEST: ${{ steps.build.outputs.digest }}
+          IMAGE: ghcr.io/${{ github.repository }}/app@${{ steps.image.outputs.digest }}
+          PLATFORM: linux/${{ matrix.arch }}
+        run: bash infra/compose/check-image.sh "$IMAGE" "$PLATFORM"
+      - name: Record exact digest
+        env:
+          DIGEST: ${{ steps.image.outputs.digest }}
         run: |
           set -euo pipefail
+          [[ "$DIGEST" == sha256:* ]]
           mkdir -p /tmp/digests
           touch "/tmp/digests/${DIGEST#sha256:}"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: digest-${{ matrix.name }}-${{ matrix.arch }}
+          name: digest-${{ matrix.image }}-${{ matrix.arch }}
           path: /tmp/digests/*
           if-no-files-found: error
-          retention-days: 1
-
-  build-depot:
-    name: Build ${{ matrix.name }} on Depot
-    if: github.event_name != 'pull_request' && vars.DEPOT_PROJECT_ID != ''
-    # Each Depot image is checked, tagged, and attested in this job without a second runner.
-    # Per-image locks bound builds and protect moving tags while other CI runs independently.
+          retention-days: 30
+  publish:
+    name: Publish immutable ${{ matrix.image }} index
+    needs: [full-tests, build]
+    if: inputs.approved == true && needs.full-tests.result == 'success' && needs.build.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 20
     permissions:
       contents: read
       packages: write
-      # Depot authenticates the build with the workflow's OIDC token; no Depot secret exists.
-      id-token: write
-      attestations: write
-    # Each image reports its own key; the fallback build reads them all.
-    outputs:
-      app: ${{ steps.depot.outputs.app }}
-      updater: ${{ steps.depot.outputs.updater }}
-      computer: ${{ steps.depot.outputs.computer }}
-    concurrency:
-      group: publish-image-${{ github.ref }}-${{ matrix.name }}
-      cancel-in-progress: false
-      queue: max
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - name: app
-            dockerfile: infra/compose/Dockerfile
-            context: .
-          - name: updater
-            dockerfile: infra/updater/Dockerfile
-            context: .
-          - name: computer
-            dockerfile: infra/sandboxes/computer/Dockerfile
-            context: infra/sandboxes/computer
+        image: [app, updater, computer, computer-headless]
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          persist-credentials: false
-      - uses: depot/setup-action@91bc8495a33ebfc504ffc89e5674379ccf23c29c # v1.7.2
-      - name: Log in to GHCR
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          # Labels only; publication applies tags after validation.
-          images: ghcr.io/${{ github.repository }}/${{ matrix.name }}
-          tags: type=sha,prefix=sha-
-      - id: build
-        uses: depot/build-push-action@98e78adca7817480b8185f474a400b451d74e287 # v1.18.0
-        continue-on-error: true
-        with:
-          project: ${{ vars.DEPOT_PROJECT_ID }}
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
-          platforms: linux/amd64,linux/arm64
-          labels: ${{ steps.meta.outputs.labels }}
-          # A fork can publish only to its own namespace; no credential can redirect this value.
-          outputs: type=image,name=ghcr.io/${{ github.repository }}/${{ matrix.name }},push-by-digest=true,name-canonical=true,push=true
-          build-args: ${{ matrix.name == 'app' && format('GIT_SHA={0}', github.sha) || '' }}
-          provenance: mode=max
-          sbom: true
-      - id: depot
-        env:
-          IMAGE: ${{ matrix.name }}
-          OUTCOME: ${{ steps.build.outcome }}
-        run: |
-          [[ "$OUTCOME" == success ]] || echo "::warning::Depot could not build ${IMAGE}; building on GitHub's runners instead."
-          echo "${IMAGE}=$([[ "$OUTCOME" == success ]] && echo built || echo failed)" >> "$GITHUB_OUTPUT"
-      - name: Check the app image ships no credentials
-        if: matrix.name == 'app' && steps.build.outcome == 'success'
-        env:
-          IMAGE: ghcr.io/${{ github.repository }}/app@${{ steps.build.outputs.digest }}
-        # Exporting a filesystem needs no emulation, so one runner checks both platforms.
-        run: |
-          set -euo pipefail
-          for platform in linux/amd64 linux/arm64; do
-            bash infra/compose/check-image.sh "$IMAGE" "$platform"
-          done
-      - name: Record the image digest
-        if: steps.build.outcome == 'success'
-        env:
-          DIGEST: ${{ steps.build.outputs.digest }}
-          BUILD_ID: ${{ steps.build.outputs.build-id }}
-          IMAGE: ${{ matrix.name }}
-        run: |
-          set -euo pipefail
-          [[ "$DIGEST" == sha256:* ]] || { echo "Depot reported no image digest." >&2; exit 1; }
-          mkdir -p /tmp/digests
-          touch "/tmp/digests/${DIGEST#sha256:}"
-          echo "Built ${IMAGE} on Depot (build ${BUILD_ID}): ${DIGEST}" >> "$GITHUB_STEP_SUMMARY"
-      - if: steps.build.outcome == 'success'
-        uses: ./.github/actions/publish-image
-        with:
-          image: ghcr.io/${{ github.repository }}/${{ matrix.name }}
-          digests-directory: /tmp/digests
-
-  publish:
-    name: Publish ${{ matrix.name }} image
-    # Native GitHub builds still need to combine their two architecture artifacts.
-    if: >-
-      !cancelled() && github.event_name != 'pull_request' && needs.build.result == 'success'
-    needs: [build]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-      attestations: write
-    concurrency:
-      group: publish-image-${{ github.ref }}-${{ matrix.name }}
-      cancel-in-progress: false
-      queue: max
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: app
-          - name: updater
-          - name: computer
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          persist-credentials: false
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          pattern: digest-${{ matrix.name }}-*
+          pattern: digest-${{ matrix.image }}-*
           path: /tmp/digests
           merge-multiple: true
-      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+      - name: Publish and record multiarch digest
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.image }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(/tmp/digests/*)
+          test "${#files[@]}" = 2
+          refs=()
+          for file in "${files[@]}"; do refs+=("$IMAGE@sha256:$(basename "$file")"); done
+          docker buildx imagetools create -t "$IMAGE:sha-$SOURCE_SHA" "${refs[@]}"
+          docker buildx imagetools inspect "$IMAGE:sha-$SOURCE_SHA" | tee image-index.txt
+          digest=$(awk '/^Digest:/ {print $2; exit}' image-index.txt)
+          [[ "$digest" == sha256:* ]]
+          echo "$IMAGE:sha-$SOURCE_SHA@$digest" | tee image-ref.txt
+          cat image-ref.txt >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: ./.github/actions/publish-image
-        with:
-          image: ghcr.io/${{ github.repository }}/${{ matrix.name }}
-          digests-directory: /tmp/digests
+          name: published-${{ matrix.image }}
+          path: |
+            image-ref.txt
+            image-index.txt
+          retention-days: 90
