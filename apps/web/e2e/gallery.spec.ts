@@ -21,6 +21,8 @@ test("gallery renders every chat scenario in both themes", async ({ page }, test
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/e2e/fixtures/gallery.html?theme=light");
   const nav = page.getByRole("navigation");
+  // The gallery renders after i18n loads; wait for it before counting scenarios.
+  await expect(nav.locator("button:not([aria-pressed])").first()).toBeVisible();
   const scenarios = await nav.locator("button:not([aria-pressed])").all();
   expect(scenarios.length).toBeGreaterThan(5);
 
