@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
-import { finishRoutineHandover, listVaultItems } from "@rakazo/adapters";
+import { FakeSandboxProvider, finishRoutineHandover, listVaultItems } from "@rakazo/adapters";
 import type { Actor } from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
 import {
@@ -130,6 +130,7 @@ describePostgres("shared spaces: invites and membership (PostgreSQL)", () => {
       billing: { syncSeats },
       jobs: { cancel: cancelJob, enqueue: enqueueJob },
       events: { ...createThreadEvents(prisma), notify },
+      sandbox: new FakeSandboxProvider(),
       env: {
         agentRuntime: "scripted",
         defaultProvider: "fake",
@@ -292,7 +293,6 @@ describePostgres("shared spaces: invites and membership (PostgreSQL)", () => {
     expect((await call(ownerInHome, "spaces/members/list", { spaceId: home })).json).toMatchObject({
       canManage: true,
     });
-
     const left = await call(member, "spaces/members/leave", { spaceId: home });
     expect(left).toEqual({ status: 200, json: { ok: true, activeSpaceId: invitee.spaceId } });
     await expect(
