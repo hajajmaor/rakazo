@@ -293,6 +293,7 @@ describePostgres("shared spaces: invites and membership (PostgreSQL)", () => {
     expect((await call(ownerInHome, "spaces/members/list", { spaceId: home })).json).toMatchObject({
       canManage: true,
     });
+
     const left = await call(member, "spaces/members/leave", { spaceId: home });
     expect(left).toEqual({ status: 200, json: { ok: true, activeSpaceId: invitee.spaceId } });
     await expect(
