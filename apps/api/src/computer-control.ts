@@ -86,7 +86,14 @@ export async function computerStatus(
     }),
     spaceIsShared(deps.prisma, actor.spaceId),
   ]);
-  return toComputerStatus(botId, bot.computer, work, shared, actor.userId);
+  return toComputerStatus(
+    botId,
+    bot.computer,
+    work,
+    shared,
+    actor.userId,
+    deps.sandbox.describe().capabilities.graphical,
+  );
 }
 
 /** Whether this person holds this bot's user control, so they may drive its screen. */
@@ -366,6 +373,9 @@ export async function takeComputerControl(
   let bot = await repos.getBot(actor, botId);
   if (!bot.computer?.providerRef || bot.computer.state !== "running") {
     throw new ORPCError("BAD_REQUEST", { message: "computer must be running" });
+  }
+  if (bot.computer.kind !== "desktop" && !deps.sandbox.describe().capabilities.graphical) {
+    throw new ORPCError("BAD_REQUEST", { message: "This computer has no screen." });
   }
   assertNotAnotherPersonsControl(bot.computer, actor);
   if (holdsComputerControl(bot.computer, bot.id, actor)) {

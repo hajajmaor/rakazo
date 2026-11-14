@@ -1,3 +1,4 @@
+import type { SandboxProvider } from "@rakazo/adapter-kit";
 import type { ThreadSnapshot } from "@rakazo/contracts";
 import {
   ACTIVE_RUN_STATUSES,
@@ -13,7 +14,7 @@ import { loadMessagePage } from "./thread-message-pages.js";
 import type { ThreadTarget } from "./thread-target.js";
 
 export async function threadSnapshot(
-  deps: { prisma: PrismaClient },
+  deps: { prisma: PrismaClient; sandbox?: Pick<SandboxProvider, "describe"> },
   target: ThreadTarget,
   viewerId?: string,
 ): Promise<ThreadSnapshot> {
@@ -118,7 +119,14 @@ export async function threadSnapshot(
       olderCursor: core.messagePage.olderCursor,
       run: core.run ? mapRun(core.run) : null,
       activeRuns: core.activeRuns.map(mapRun),
-      computer: toComputerStatus(target.botId, target.bot.computer, work, core.shared, viewerId),
+      computer: toComputerStatus(
+        target.botId,
+        target.bot.computer,
+        work,
+        core.shared,
+        viewerId,
+        deps.sandbox?.describe().capabilities.graphical,
+      ),
     };
   }
 

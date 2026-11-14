@@ -14,7 +14,7 @@ import {
   windowChromeKind,
 } from "../../lib/desktop";
 import { ComputerReleaseActions } from "./computer-release-actions";
-import { computerLabel, DesktopKindEmptyState } from "./computer-view";
+import { computerLabel, DesktopKindEmptyState, NoScreenEmptyState } from "./computer-view";
 
 type ComputerOverlayProps = {
   bot: Bot;
@@ -138,7 +138,7 @@ export function ComputerOverlay({
                 takeoverRequested={Boolean(computer?.takeoverRequested)}
                 onRelease={onRelease}
               />
-            ) : computer?.state === "running" ? (
+            ) : computer?.state === "running" && !computer.noScreen ? (
               <Button
                 type="button"
                 variant="outline"
@@ -180,6 +180,8 @@ export function ComputerOverlay({
         <div className="relative min-h-0 flex-1 bg-background">
           {computer?.kind === "desktop" ? (
             <DesktopKindEmptyState className="grid h-full place-items-center px-8 text-center text-body text-muted-foreground/80" />
+          ) : computer?.noScreen && computer.state === "running" ? (
+            <NoScreenEmptyState className="grid h-full place-items-center px-8 text-center text-body text-muted-foreground/80" />
           ) : computer?.state === "running" && embeddedScreenUrl && !computerScreenError ? (
             <>
               {screenFrames(screenFrameKey, embeddedScreenUrl, heldScreen).map((frame) => (

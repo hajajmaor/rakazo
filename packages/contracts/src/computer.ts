@@ -48,6 +48,8 @@ export const ComputerStatusSchema = z.object({
   shared: z.boolean().optional(),
   /** True when another person in the Space has control, so this viewer only watches. */
   controlledByOther: z.boolean().optional(),
+  /** True when the computer was built without a desktop: shell and files only, no screen. */
+  noScreen: z.boolean().optional(),
   /** The viewer's own control lease, set only for the person holding it; closing hands it back. */
   controlLeaseId: Id.optional(),
 });

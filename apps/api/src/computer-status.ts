@@ -66,6 +66,7 @@ export function toComputerStatus(
   work: ComputerWork = { busyBotName: null, takeoverRequested: false },
   shared = false,
   viewerId?: string,
+  graphical = true,
 ): ComputerStatus {
   const controlledByOther = Boolean(
     viewerId && computer?.controlHolder === "user" && !holdsUserControl(computer, viewerId),
@@ -97,6 +98,7 @@ export function toComputerStatus(
               ? computer.state
               : "stopped";
   const screen = computerScreenSize(computer?.kind);
+  const noScreen = !graphical && kind !== "desktop" && kind !== "none";
   const diskPercent = computer ? diskUsedPercent(computer) : null;
   const diskFull =
     diskPercent !== null &&
@@ -106,6 +108,7 @@ export function toComputerStatus(
     botId,
     ...(shared ? { shared } : {}),
     ...(controlledByOther ? { controlledByOther } : {}),
+    ...(noScreen ? { noScreen } : {}),
     ...(ownLeaseId ? { controlLeaseId: ownLeaseId } : {}),
     mode: computer?.scope === "dedicated" ? "dedicated" : "team",
     kind,
@@ -113,13 +116,15 @@ export function toComputerStatus(
     controlHolder: (computer?.controlHolder ?? "none") as ComputerStatus["controlHolder"],
     controlBotId: computer?.controlBotId ?? null,
     takeoverRequested: work.takeoverRequested,
-    screenAvailable: !computer?.maintenanceId && (state === "running" || state === "booting"),
+    screenAvailable:
+      !noScreen && !computer?.maintenanceId && (state === "running" || state === "booting"),
     screenWidth: screen.width,
     screenHeight: screen.height,
     homeRevision: computer?.homeRevision ?? null,
     busyBotName: work.busyBotName,
     canUpdate: computerSupportsUpdate(kind),
-    terminalAvailable: computerSupportsTerminal(kind),
+    // The user terminal opens on the computer's screen.
+    terminalAvailable: computerSupportsTerminal(kind) && !noScreen,
     ...(diskFull ? { diskFullPercent: diskPercent } : {}),
   };
 }
