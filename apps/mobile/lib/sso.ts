@@ -25,8 +25,6 @@ export async function continueWithSso(
         throw new Error(t`Could not continue`);
     };
     const callbackURL = action === "sign-in" ? "rakazo://sign-in" : "rakazo://account";
-    // Binaries without the crypto module fall back to the session cookie in the callback.
-    const pkce = await appPkce().catch(() => null);
     const headers = action === "sign-in" ? {} : await authHeaders();
     requireCurrentSession();
     const previous = action === "reauthenticate" ? await sessionUser(apiBase, headers) : undefined;
@@ -46,7 +44,7 @@ export async function continueWithSso(
         },
         body: JSON.stringify({
           provider: "oidc",
-          callbackURL: pkce ? `${callbackURL}?challenge=${pkce.challenge}` : callbackURL,
+          callbackURL,
           errorCallbackURL: callbackURL,
           disableRedirect: true,
           ...(action === "reauthenticate" ? { additionalData: { reauthenticate: true } } : {}),
@@ -86,14 +84,10 @@ export async function continueWithSso(
       );
     requireCurrentSession();
     if (action === "link") return true;
-    const code = callback.searchParams.get("code");
     const cookie = callback.searchParams.get("cookie");
-    const token =
-      code && pkce
-        ? await exchangeCode(apiBase, code, pkce.verifier)
-        : cookie
-          ? tokenFromAuthResponse(new Response(null, { headers: { "set-cookie": cookie } }), null)
-          : "";
+    const token = cookie
+      ? tokenFromAuthResponse(new Response(null, { headers: { "set-cookie": cookie } }), null)
+      : "";
     if (!token) throw new Error(t`Sign-in did not return a session`);
     const user = await sessionUser(apiBase, { authorization: `Bearer ${token}` });
     if (!user || (action === "reauthenticate" && (!previous || previous !== user)))
@@ -112,34 +106,6 @@ export async function continueWithSso(
   } finally {
     inFlight = false;
   }
-}
-
-async function appPkce() {
-  const { CryptoDigestAlgorithm, CryptoEncoding, digestStringAsync, getRandomBytes } = await import(
-    "expo-crypto"
-  );
-  const base64url = (base64: string) =>
-    base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-  const verifier = base64url(btoa(String.fromCharCode(...getRandomBytes(32))));
-  const challenge = await digestStringAsync(CryptoDigestAlgorithm.SHA256, verifier, {
-    encoding: CryptoEncoding.BASE64,
-  });
-  return { verifier, challenge: base64url(challenge) };
-}
-
-async function exchangeCode(apiBase: string, code: string, verifier: string): Promise<string> {
-  const { response, body, invalidJson } = await fetchMobileJson<{ token?: string }>(
-    `${apiBase}/api/auth/app-sign-in/token`,
-    {
-      method: "POST",
-      headers: { "content-type": "application/json", origin: "rakazo://" },
-      body: JSON.stringify({ code, verifier }),
-    },
-    {},
-  );
-  if (!response.ok || invalidJson)
-    throw new Error(authResponseErrorText(response.status, body, invalidJson));
-  return typeof body.token === "string" ? body.token : "";
 }
 
 async function sessionUser(apiBase: string, headers: Record<string, string>): Promise<string> {
