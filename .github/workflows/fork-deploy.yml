@@ -1,0 +1,64 @@
+name: fork-deploy
+
+# Lives only on the fork's deploy branch, so main stays identical to upstream. Builds with upstream's
+# own image workflow, so each rebase onto upstream picks up its current build. Tags: sha-<commit>.
+on:
+  push:
+    branches: [deploy]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-deploy
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-workspace
+      - run: pnpm db:generate
+        env:
+          DATABASE_URL: postgres://rakazo:rakazo@127.0.0.1:5433/rakazo
+      - run: pnpm check
+
+  unit:
+    name: Unit tests (${{ matrix.shard }}/6)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-workspace
+      - run: pnpm db:generate
+        env:
+          DATABASE_URL: postgres://rakazo:rakazo@127.0.0.1:5433/rakazo
+      - name: Install age for the encrypted backup round trip
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/age.tar.gz" \
+            "https://github.com/FiloSottile/age/releases/download/v1.3.2/age-v1.3.2-linux-amd64.tar.gz"
+          echo "cbe24006683f8eb669266162894b9a522a1af52f2665fbc63a4bb032ed26ac10  $RUNNER_TEMP/age.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/age.tar.gz" -C "$RUNNER_TEMP" age/age age/age-keygen
+          sudo install -m 755 "$RUNNER_TEMP/age/age" "$RUNNER_TEMP/age/age-keygen" /usr/local/bin/
+      - run: pnpm run test --shard=${{ matrix.shard }}/6
+
+  images:
+    name: Publish images
+    needs: [checks, unit]
+    uses: ./.github/workflows/publish-server-image.yml
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
