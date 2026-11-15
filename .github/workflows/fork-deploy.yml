@@ -62,3 +62,27 @@ jobs:
       packages: write
       id-token: write
       attestations: write
+
+  # Dokploy pulls :deploy, so point it at this build.
+  tag:
+    name: Tag images deploy
+    needs: [images]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      packages: write
+    steps:
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+      - env:
+          REPO: ghcr.io/${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          for name in app updater computer; do
+            docker buildx imagetools create -t "$REPO/$name:deploy" "$REPO/$name:sha-$SHA"
+          done
