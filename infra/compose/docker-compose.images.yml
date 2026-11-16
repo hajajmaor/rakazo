@@ -571,7 +571,7 @@ services:
     cap_drop:
       - ALL
     pids_limit: 512
-    mem_limit: 2g
+    mem_limit: 3g
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
